@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Jira Subtask Display",
+  "version": "0.1.0",
+  "description": "Collapsible subtask and parent navigation on Jira Cloud issue pages.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.atlassian.net/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "css": [
+        "src/styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
