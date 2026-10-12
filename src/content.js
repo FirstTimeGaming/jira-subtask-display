@@ -139,9 +139,11 @@
       panel.append(button, body);
     }
     // Jira re-renders sections during SPA navigation; reattach when necessary.
-    if (panel.previousElementSibling !== header) header.insertAdjacentElement("afterend", panel);
-    if (cachedView) render(cachedView);
-    else showMessage(panel.querySelector(".jsd-body"), "Loading subtasks…");
+    if (panel.previousElementSibling !== header) {
+      header.insertAdjacentElement("afterend", panel);
+      if (cachedView) render(cachedView);
+      else showMessage(panel.querySelector(".jsd-body"), "Loading subtasks…");
+    }
   }
 
   async function load(key, id, signal) {
@@ -163,6 +165,7 @@
       };
     }
     mount();
+    render(cachedView);
   }
 
   function update() {
