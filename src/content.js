@@ -6,6 +6,7 @@
     '[data-testid*="backlog.card"]','[data-testid*="backlog.issue"]',
     '[data-issue-key]','[role="listitem"]','[role="row"]'];
   const mounted = new Map();
+  const expandedKeys = new Set(); // Survives Jira row replacement / extension remount.
   // Jira's hierarchy/subtask glyph is the signal: never add a toggle to every row.
   const glyphSelectors = [
     '[data-testid*="subtask" i]', '[data-testid*="hierarchy" i]',
@@ -95,7 +96,7 @@
   async function getIssue(key, signal) {
     if (cache.has(key)) return cache.get(key);
     const response = await fetch('/rest/api/3/issue/' + encodeURIComponent(key) +
-      '?fields=summary,status,subtasks,parent', {
+      '?fields=summary,status,subtasks,parent,issuetype', {
       credentials: 'same-origin', headers: { Accept: 'application/json' }, signal
     });
     if (!response.ok) throw new Error('Jira API returned HTTP ' + response.status);
@@ -128,10 +129,11 @@
   function draw(entry, issue, siblings) {
     if (!entry.open || !entry.panel.isConnected) return;
     const parent = issue.fields?.parent;
-    const items = parent ? siblings : (issue.fields?.subtasks || []);
-    title(entry, (parent ? 'Sibling subtasks' : 'Subtasks') + ' (' + items.length + ')');
+    const isSubtask = issue.fields?.issuetype?.subtask === true;
+    const items = isSubtask ? siblings : (issue.fields?.subtasks || []);
+    title(entry, (isSubtask ? 'Sibling subtasks' : 'Subtasks') + ' (' + items.length + ')');
     entry.panel.replaceChildren();
-    if (parent) {
+    if (isSubtask && parent) {
       entry.panel.append(make('div', 'jsd-caption', 'Parent issue'));
       entry.panel.append(childLink(parent, entry.key));
       entry.panel.append(make('div', 'jsd-caption', 'Sibling subtasks'));
@@ -142,6 +144,7 @@
 
   async function expand(entry) {
     entry.open = true;
+    expandedKeys.add(entry.key);
     entry.panel.hidden = false;
     title(entry, 'Loading…');
     entry.panel.replaceChildren(make('div', 'jsd-empty', 'Loading issue hierarchy…'));
@@ -149,7 +152,7 @@
     entry.controller = controller;
     try {
       const issue = await getIssue(entry.key, controller.signal);
-      const parentKey = issue.fields?.parent?.key;
+      const parentKey = issue.fields?.issuetype?.subtask === true ? issue.fields?.parent?.key : null;
       const parent = parentKey ? await getIssue(parentKey, controller.signal) : null;
       if (entry.controller === controller && entry.open)
         draw(entry, issue, parent?.fields?.subtasks || []);
@@ -191,6 +194,7 @@
       event.stopPropagation();
       if (entry.open) {
         entry.open = false;
+        expandedKeys.delete(entry.key);
         entry.controller?.abort();
         entry.panel.hidden = true;
         title(entry, 'Subtasks');
@@ -203,11 +207,13 @@
     anchor.insertAdjacentElement('afterend', button);
     row.insertAdjacentElement('afterend', panel);
     mounted.set(key, entry);
+    if (expandedKeys.has(key)) void expand(entry);
   }
 
   function scan() {
     if (!isBacklog()) {
       for (const entry of [...mounted.values()]) remove(entry);
+      expandedKeys.clear();
       return;
     }
     const found = new Set();
@@ -217,8 +223,7 @@
       attach(key, el);
     }
     for (const entry of [...mounted.values()])
-      if (!entry.row.isConnected || !entry.button.isConnected || !entry.panel.isConnected ||
-          !found.has(entry.key) || !findSubtaskGlyph(entry.row, entry.label))
+      if (!entry.row.isConnected || !entry.button.isConnected || !entry.panel.isConnected)
         remove(entry);
   }
 
