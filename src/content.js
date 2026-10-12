@@ -82,6 +82,12 @@
       const boxes = svg.querySelectorAll('rect, circle').length;
       const connections = svg.querySelectorAll('line, polyline').length;
       if (boxes >= 2 && connections >= 1 && shapes.length >= 3) return svg;
+      // Atlassian also draws this symbol as one or more paths with
+      // multiple rectangular subpaths and a horizontal/vertical connector.
+      const pathData = [...svg.querySelectorAll('path[d]')]
+        .map(path => path.getAttribute('d') || '').join(' ');
+      if ((pathData.match(/[mM]/g) || []).length >= 3 &&
+          /[hHvV]/.test(pathData)) return svg;
     }
     return null;
   }
