@@ -1,0 +1,40 @@
+.jsd-expand {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex: 0 0 18px;
+  box-sizing: border-box;
+  width: 18px;
+  height: 22px;
+  margin: 0 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: 13px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.jsd-expand:hover { background: rgba(128,128,128,.14); }
+.jsd-expand:focus-visible { outline: 2px solid #579dff; outline-offset: 1px; }
+.jsd-inline {
+  box-sizing: border-box; margin: 0 0 2px 25px; padding: 6px 12px 8px 18px;
+  border-left: 2px solid #579dff; color: inherit;
+  font: 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.jsd-inline[hidden] { display: none !important; }
+.jsd-caption {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  opacity: .7; margin: 6px 0 3px;
+}
+.jsd-child {
+  display: flex; gap: 8px; align-items: center; border-radius: 3px;
+  padding: 5px 8px; color: inherit; text-decoration: none; min-width: 0;
+}
+.jsd-child:hover, .jsd-active { background: rgba(80,130,200,.16); }
+.jsd-check { width: 12px; flex: 0 0 auto; }
+.jsd-key { font-weight: 600; color: #579dff; flex: 0 0 auto; }
+.jsd-summary { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.jsd-status { margin-left: auto; opacity: .75; white-space: nowrap; }
+.jsd-empty { opacity: .7; padding: 6px 8px; }
