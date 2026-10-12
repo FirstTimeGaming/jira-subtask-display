@@ -1,30 +1,28 @@
 # Jira Subtask Display
 
-A lightweight, no-build **Chrome / Edge Manifest V3** extension for Jira Cloud. Displays a collapsible list of subtasks below the issue summary. When viewing a subtask, it shows the parent issue and sibling subtasks, highlighting the current issue.
+A no-build Chrome/Edge Manifest V3 extension that inserts expandable issue hierarchy controls **into Jira Cloud backlog rows**, not the issue detail drawer.
 
-## Install (unpacked)
+## Install
 
-1. Clone this repository and check out `ai/initial-subtask-display`.
-2. Open `chrome://extensions` (or `edge://extensions`).
-3. Enable **Developer mode**, choose **Load unpacked**, and select the repository folder.
-4. Open a Jira Cloud issue, e.g. `https://your-site.atlassian.net/browse/PROJECT-123`.
+1. Check out `ai/initial-subtask-display`.
+2. Open `chrome://extensions` or `edge://extensions`, enable Developer mode, then choose **Load unpacked** and select this directory.
+3. Navigate to your Jira project's **Backlog** page. Each detected issue row gets a **▸ Subtasks** control beside its issue key.
+4. Click to expand an inline list directly below that backlog row. Click again to collapse.
 
-The extension is scoped to `*.atlassian.net` only. It uses your existing Jira session to fetch `/rest/api/3/issue/{key}?fields=summary,status,subtasks,parent`. It does not store Jira data or send it to third parties.
+The first click fetches the issue through the existing Jira session via `/rest/api/3/issue/{key}?fields=summary,status,subtasks,parent`. A parent issue shows its direct subtasks; a child issue shows its **parent and sibling subtasks**, since Jira's native subtasks only have one level.
 
-## Behavior
+## Implementation notes
 
-- Parent issues: list direct subtasks with key, summary and status.
-- Subtasks: show clickable parent and siblings, including the current issue.
-- Supports `/browse/PROJECT-123` and `?selectedIssue=PROJECT-123` URL forms.
-- Detects Jira single-page-app navigation and mounts again after Jira replaces the heading.
-- Handles empty lists and REST API failures.
-
-## Limitations / next steps
-
-- Jira's DOM is not a stable public extension API; verify the heading placement against the Jira issue view you use. The first implementation mounts just after Jira's summary heading, with fallbacks.
-- This is intended for Chrome/Edge desktop; Firefox has not been tested.
-- Additional nesting (epics, stories), preferences, and deployment packaging are future enhancements.
+- Backlog-only. The right-side issue drawer is unchanged.
+- Per-row collapsible controls; children show issue keys, summaries, and status.
+- Requests load on demand and are cached during the page session.
+- Detects DOM updates and SPA navigation to attach controls to freshly rendered rows.
+- Only matches `*.atlassian.net`, requires an existing Jira session, and does not send data elsewhere.
 
 ## Validation
 
-Run `node --check src/content.js` and inspect `manifest.json`. Then manually verify a parent issue, a child issue, SPA navigation, empty subtasks, and no-access/expired-session behavior in your Jira tenant.
+`node --check src/content.js`
+
+**Browser testing is still required.** Jira backlog DOM structure and styling can vary across tenants, so confirm that (1) controls appear in the intended row, (2) expansion is directly beneath that row, (3) parent/child behavior is accurate, (4) scrolling and sprint/grouping remain usable, and (5) SPA navigation doesn't produce duplicated controls.
+
+The row detection uses Jira test IDs when available and a constrained DOM fallback otherwise. If your tenant uses virtualized rows or table markup, additional selector and placement tuning may be needed.
