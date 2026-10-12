@@ -6,6 +6,13 @@
     '[data-testid*="backlog.card"]','[data-testid*="backlog.issue"]',
     '[data-issue-key]','[role="listitem"]','[role="row"]'];
   const mounted = new Map();
+  // Jira's hierarchy/subtask glyph is the signal: never add a toggle to every row.
+  const glyphSelectors = [
+    '[data-testid*="subtask" i]', '[data-testid*="hierarchy" i]',
+    '[aria-label*="subtask" i]', '[aria-label*="hierarchy" i]',
+    '[title*="subtask" i]', '[title*="hierarchy" i]',
+    'svg[data-testid*="child" i]', '[data-testid*="child-issue" i]'
+  ];
   const cache = new Map();
   let pendingScan = false;
   const make = (tag, cls, value) => {
@@ -48,6 +55,37 @@
     return result;
   }
 
+  function findSubtaskGlyph(row, label) {
+    // Prefer Jira's accessible/test identifiers, but restrict matches to a compact
+    // icon around the issue's summary, not a whole backlog row or panel.
+    const rowRect = row.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    for (const selector of glyphSelectors) {
+      for (const candidate of row.querySelectorAll(selector)) {
+        const svg = candidate.matches('svg') ? candidate : candidate.querySelector('svg');
+        if (!svg) continue;
+        const rect = svg.getBoundingClientRect();
+        if (rect.width < 10 || rect.width > 28 || rect.height < 10 || rect.height > 28) continue;
+        if (rect.left <= labelRect.left || rect.right > rowRect.right - 20) continue;
+        return svg;
+      }
+    }
+
+    // Some Jira editions expose only the SVG without its semantic label.
+    // Match the connected-box hierarchy glyph by geometric primitives,
+    // never merely by the presence of *any* SVG in a row.
+    for (const svg of row.querySelectorAll('svg')) {
+      const rect = svg.getBoundingClientRect();
+      if (rect.width < 14 || rect.width > 26 || rect.height < 14 || rect.height > 26) continue;
+      if (rect.left <= labelRect.right + 12 || rect.right > rowRect.right - 40) continue;
+      const shapes = svg.querySelectorAll('rect, circle, line, polyline');
+      const boxes = svg.querySelectorAll('rect, circle').length;
+      const connections = svg.querySelectorAll('line, polyline').length;
+      if (boxes >= 2 && connections >= 1 && shapes.length >= 3) return svg;
+    }
+    return null;
+  }
+
   async function getIssue(key, signal) {
     if (cache.has(key)) return cache.get(key);
     const response = await fetch('/rest/api/3/issue/' + encodeURIComponent(key) +
@@ -75,7 +113,9 @@
   }
 
   function title(entry, label) {
-    entry.button.textContent = (entry.open ? '▾ ' : '▸ ') + label;
+    entry.button.textContent = entry.open ? '▾' : '▸';
+    entry.button.title = label + ' for ' + entry.key;
+    entry.button.setAttribute('aria-label', (entry.open ? 'Collapse ' : 'Expand ') + label + ' for ' + entry.key);
     entry.button.setAttribute('aria-expanded', String(entry.open));
   }
 
@@ -125,19 +165,21 @@
   function attach(key, label) {
     const row = findRow(label);
     if (!row || row.closest('.jsd-inline')) return;
+    const glyph = findSubtaskGlyph(row, label);
+    if (!glyph) return;
     if (row.dataset.jsdIssueKey && row.dataset.jsdIssueKey !== key) return;
     const old = mounted.get(key);
     if (old && old.row === row && old.button.isConnected && old.panel.isConnected) return;
     if (old) remove(old);
 
-    const button = make('button', 'jsd-expand', '▸ Subtasks');
+    const button = make('button', 'jsd-expand', '▸');
     button.type = 'button';
     button.setAttribute('aria-label', 'Expand subtasks for ' + key);
     button.setAttribute('aria-expanded', 'false');
     const panel = make('div', 'jsd-inline');
     panel.hidden = true;
     panel.addEventListener('click', event => event.stopPropagation());
-    const entry = { key, row, button, panel, open: false, controller: null };
+    const entry = { key, row, label, button, panel, open: false, controller: null };
     button.addEventListener('click', event => {
       event.preventDefault();
       event.stopPropagation();
@@ -149,7 +191,10 @@
       } else void expand(entry);
     });
     row.dataset.jsdIssueKey = key;
-    label.insertAdjacentElement('afterend', button);
+    // Place the compact chevron next to Jira's existing hierarchy icon,
+    // not after the issue key (which causes the label to wrap vertically).
+    const anchor = glyph.closest('button, [role="button"]') || glyph;
+    anchor.insertAdjacentElement('afterend', button);
     row.insertAdjacentElement('afterend', panel);
     mounted.set(key, entry);
   }
@@ -166,7 +211,8 @@
       attach(key, el);
     }
     for (const entry of [...mounted.values()])
-      if (!entry.row.isConnected || !entry.button.isConnected || !entry.panel.isConnected)
+      if (!entry.row.isConnected || !entry.button.isConnected || !entry.panel.isConnected ||
+          !found.has(entry.key) || !findSubtaskGlyph(entry.row, entry.label))
         remove(entry);
   }
 
