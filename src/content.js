@@ -23,7 +23,14 @@
     return el;
   };
   const isBacklog = () => /backlog/i.test(location.pathname + location.hash);
-  const url = key => location.origin + '/browse/' + encodeURIComponent(key);
+  // Jira's backlog uses selectedIssue to open the native right-hand issue drawer.
+  // Preserve the current board, sprint/filter parameters and URL hash.
+  const url = key => {
+    if (!isBacklog()) return location.origin + '/browse/' + encodeURIComponent(key);
+    const target = new URL(location.href);
+    target.searchParams.set('selectedIssue', key);
+    return target.href;
+  };
 
   function findRow(label) {
     for (const selector of rowSelectors) {
